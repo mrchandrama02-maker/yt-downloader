@@ -2,6 +2,7 @@ from flask import Flask, request, jsonify, render_template, send_from_directory
 import yt_dlp
 import threading
 import os
+import shutil
 
 app = Flask(__name__)
 
@@ -43,6 +44,7 @@ def download_video(url, quality):
         'format': format_code,
         'outtmpl': 'downloads/%(title)s.%(ext)s',
         'progress_hooks': [progress_hook],
+        'ffmpeg_location': shutil.which("ffmpeg"),
     }
 
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
