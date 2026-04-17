@@ -2,86 +2,177 @@
 <html>
 <head>
     <title>YT Downloader Pro</title>
+
+    <style>
+        body {
+            margin: 0;
+            font-family: 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #0f172a, #1e293b);
+            color: white;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+
+        .card {
+            background: rgba(255,255,255,0.05);
+            backdrop-filter: blur(15px);
+            padding: 30px;
+            border-radius: 20px;
+            width: 400px;
+            text-align: center;
+            box-shadow: 0 0 30px rgba(0,0,0,0.5);
+        }
+
+        h1 {
+            margin-bottom: 20px;
+        }
+
+        input, select {
+            width: 90%;
+            padding: 12px;
+            margin: 10px 0;
+            border-radius: 10px;
+            border: none;
+            outline: none;
+        }
+
+        button {
+            padding: 12px 25px;
+            border-radius: 10px;
+            border: none;
+            background: linear-gradient(90deg, #3b82f6, #2563eb);
+            color: white;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+
+        button:hover {
+            opacity: 0.8;
+        }
+
+        #progressBar {
+            width: 100%;
+            background: #1e293b;
+            border-radius: 10px;
+            margin-top: 15px;
+        }
+
+        #progressFill {
+            width: 0%;
+            height: 10px;
+            background: #22c55e;
+            border-radius: 10px;
+        }
+
+        ul {
+            text-align: left;
+            margin-top: 15px;
+        }
+
+        a {
+            color: #22c55e;
+            text-decoration: none;
+        }
+
+        .loader {
+            border: 4px solid #1e293b;
+            border-top: 4px solid #3b82f6;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 10px auto;
+            display: none;
+        }
+
+        @keyframes spin {
+            100% { transform: rotate(360deg); }
+        }
+    </style>
 </head>
 
-<body style="text-align:center; font-family:Arial; margin-top:50px; background:#0f172a; color:white;">
+<body>
 
+<div class="card">
     <h1>🚀 YT Downloader Pro</h1>
 
-    <input id="url" placeholder="Paste YouTube URL"
-        style="width:300px; padding:10px; border-radius:5px;" />
+    <input id="url" placeholder="Paste YouTube URL" />
 
-    <br><br>
-
-    <select id="quality" style="padding:10px;">
+    <select id="quality">
         <option value="1080p">1080p</option>
         <option value="720p">720p</option>
         <option value="audio">Audio Only</option>
     </select>
 
-    <br><br>
+    <button onclick="download()">Download</button>
 
-    <button onclick="download()" style="padding:10px 20px; background:#3b82f6; color:white; border:none;">
-        Download
-    </button>
+    <div class="loader" id="loader"></div>
 
     <p id="status"></p>
-    <p id="progress"></p>
 
-    <br>
+    <div id="progressBar">
+        <div id="progressFill"></div>
+    </div>
 
-    <button onclick="loadFiles()" style="padding:10px;">
-        Show Downloads
-    </button>
+    <button onclick="loadFiles()">Show Downloads</button>
 
     <ul id="fileList"></ul>
+</div>
 
-    <script>
-        async function download() {
-            let url = document.getElementById("url").value;
-            let quality = document.getElementById("quality").value;
+<script>
+async function download() {
+    let url = document.getElementById("url").value;
+    let quality = document.getElementById("quality").value;
 
-            let res = await fetch("/download", {
-                method: "POST",
-                headers: {"Content-Type": "application/json"},
-                body: JSON.stringify({url: url, quality: quality})
-            });
+    document.getElementById("loader").style.display = "block";
 
-            let data = await res.json();
-            document.getElementById("status").innerText = data.message || data.error;
+    let res = await fetch("/download", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({url: url, quality: quality})
+    });
 
-            trackProgress();
+    let data = await res.json();
+    document.getElementById("status").innerText = data.message || data.error;
+
+    trackProgress();
+}
+
+async function trackProgress() {
+    let interval = setInterval(async () => {
+        let res = await fetch("/progress");
+        let data = await res.json();
+
+        let percent = parseFloat(data.percent);
+
+        document.getElementById("progressFill").style.width = percent + "%";
+        document.getElementById("status").innerText =
+            data.status + " " + data.percent;
+
+        if (data.percent === "100%") {
+            clearInterval(interval);
+            document.getElementById("loader").style.display = "none";
+            loadFiles();
         }
+    }, 1000);
+}
 
-        async function trackProgress() {
-            let interval = setInterval(async () => {
-                let res = await fetch("/progress");
-                let data = await res.json();
+async function loadFiles() {
+    let res = await fetch("/files");
+    let files = await res.json();
 
-                document.getElementById("progress").innerText =
-                    data.status + " " + data.percent;
+    let list = document.getElementById("fileList");
+    list.innerHTML = "";
 
-                if (data.percent === "100%") {
-                    clearInterval(interval);
-                    loadFiles();
-                }
-            }, 1000);
-        }
-
-        async function loadFiles() {
-            let res = await fetch("/files");
-            let files = await res.json();
-
-            let list = document.getElementById("fileList");
-            list.innerHTML = "";
-
-            files.forEach(file => {
-                let li = document.createElement("li");
-                li.innerHTML = `<a href="/download_file/${file}" style="color:lightgreen;">${file}</a>`;
-                list.appendChild(li);
-            });
-        }
-    </script>
+    files.forEach(file => {
+        let li = document.createElement("li");
+        li.innerHTML = `<a href="/download_file/${file}">${file}</a>`;
+        list.appendChild(li);
+    });
+}
+</script>
 
 </body>
 </html>
