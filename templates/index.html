@@ -2,86 +2,84 @@
 <html>
 <head>
     <title>YT Downloader Pro</title>
-    <style>
-        body {
-            background: #0f172a;
-            color: white;
-            text-align: center;
-            font-family: Arial;
-            margin-top: 80px;
-        }
-
-        input, select {
-            padding: 12px;
-            border-radius: 8px;
-            border: none;
-            margin: 10px;
-        }
-
-        button {
-            padding: 12px 25px;
-            background: #3b82f6;
-            border: none;
-            color: white;
-            border-radius: 8px;
-            cursor: pointer;
-        }
-
-        #status {
-            margin-top: 20px;
-            font-size: 18px;
-        }
-    </style>
 </head>
 
-<body>
+<body style="text-align:center; font-family:Arial; margin-top:50px; background:#0f172a; color:white;">
 
     <h1>🚀 YT Downloader Pro</h1>
 
-    <input id="url" placeholder="Paste YouTube URL" />
+    <input id="url" placeholder="Paste YouTube URL"
+        style="width:300px; padding:10px; border-radius:5px;" />
 
-    <br>
+    <br><br>
 
-    <select id="quality">
-        <option value="1080">1080p</option>
-        <option value="720">720p</option>
+    <select id="quality" style="padding:10px;">
+        <option value="1080p">1080p</option>
+        <option value="720p">720p</option>
         <option value="audio">Audio Only</option>
     </select>
 
-    <br>
+    <br><br>
 
-    <button onclick="download()">Download</button>
+    <button onclick="download()" style="padding:10px 20px; background:#3b82f6; color:white; border:none;">
+        Download
+    </button>
 
     <p id="status"></p>
+    <p id="progress"></p>
+
+    <br>
+
+    <button onclick="loadFiles()" style="padding:10px;">
+        Show Downloads
+    </button>
+
+    <ul id="fileList"></ul>
 
     <script>
         async function download() {
             let url = document.getElementById("url").value;
             let quality = document.getElementById("quality").value;
 
-            document.getElementById("status").innerText = "Starting...";
-
-            await fetch("/download", {
+            let res = await fetch("/download", {
                 method: "POST",
-                headers: {
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify({ url: url, quality: quality })
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify({url: url, quality: quality})
             });
 
-            // start polling progress
-            checkProgress();
+            let data = await res.json();
+            document.getElementById("status").innerText = data.message || data.error;
+
+            trackProgress();
         }
 
-        async function checkProgress() {
-            let res = await fetch("/progress");
-            let data = await res.json();
+        async function trackProgress() {
+            let interval = setInterval(async () => {
+                let res = await fetch("/progress");
+                let data = await res.json();
 
-            document.getElementById("status").innerText = data.status;
+                document.getElementById("progress").innerText =
+                    data.status + " " + data.percent;
 
-            if (!data.status.includes("completed")) {
-                setTimeout(checkProgress, 1000);
-            }
+                if (data.percent === "100%") {
+                    clearInterval(interval);
+                    loadFiles();
+                }
+            }, 1000);
+        }
+
+        async function loadFiles() {
+            let res = await fetch("/files");
+            let files = await res.json();
+
+            let list = document.getElementById("fileList");
+            list.innerHTML = "";
+
+            files.forEach(file => {
+                let li = document.createElement("li");
+                li.innerHTML = `<a href="/download_file/${file}" style="color:lightgreen;">${file}</a>`;
+                list.appendChild(li);
+            });
         }
     </script>
 
